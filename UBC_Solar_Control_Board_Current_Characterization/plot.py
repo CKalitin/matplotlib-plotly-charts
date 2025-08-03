@@ -4,13 +4,18 @@ import numpy as np
 import os
 import sys
 
-# Run in terminal with `python plot.py <filename>`
+# Run in terminal with `python plot.py <filename>` or `python plot.py all` to process all files
 
 # Files:
 # TEK0008.CSV = First run recording startup, 5 second total time
 # TEK0012.CSV = Startup with 100 ms div size, for 1s total recording time
 # TEK0015.CSV = Full startup sequence with 1s div size for 10s total recording time
-#
+
+# Files that show the capacitor current spike: 12 and 17
+# TEK0012: 0.0440 to 0.0512 s
+# TEK0017: 0.0292 to 0.0400 s
+
+VOLTAGE_OFFSET = 1.67 # Internal voltage offset of the TMCS1108A3U current sensor, derived from csv data
 
 def smooth_data(data, window_size=11):
     """
@@ -71,22 +76,31 @@ def read_tek_csv(filename):
     
     return np.array(time_data), np.array(voltage_data)
 
-def plot_voltage_and_current(filename, sensitivity_mv_per_a=200):
+def plot_voltage_and_current(filename, sensitivity_mv_per_a=200, time_min=None, time_max=None, output_filename=None, show_smoothed=True):
     """
     Create time vs voltage and time vs current plots for a given CSV file.
     
     Args:
         filename (str): Path to the CSV file
         sensitivity_mv_per_a (float): Sensitivity in mV/A (default: 200)
+        time_min (float): Minimum time to display on x-axis (default: None, uses data min)
+        time_max (float): Maximum time to display on x-axis (default: None, uses data max)
+        output_filename (str): Custom base filename for output files (default: None, uses CSV base filename)
+        show_smoothed (bool): Whether to display smoothed data (default: True)
     """
     # Read the data
     time, voltage = read_tek_csv(filename)
     
-    # Apply voltage offset (subtract 1.65V)
-    voltage = voltage - 1.65
+    # For plot 12, use higher offset (0.08V higher than standard)
+    # Next time, manually note down the default voltage for 0 A so this isn't an issue (for every test)
+    if os.path.splitext(os.path.basename(filename))[0] in ['TEK0012']: voltage_offset = VOLTAGE_OFFSET - 0.08
+    else: voltage_offset = VOLTAGE_OFFSET
+    
+    # Apply voltage offset
+    voltage = voltage - voltage_offset
     
     # Set any negative voltage values to the default 0 V
-    voltage[voltage < 0] = 0
+    voltage[voltage < -0.1] = 0
     
     # Apply smoothing to reduce noise
     voltage_smooth = smooth_data(voltage, window_size=11)
@@ -102,40 +116,53 @@ def plot_voltage_and_current(filename, sensitivity_mv_per_a=200):
     
     # Get base filename for saving
     base_filename = os.path.splitext(os.path.basename(filename))[0]
+    if output_filename is not None:
+        base_filename = output_filename
     
     # Create voltage plot
     fig1, ax1 = plt.subplots(1, 1, figsize=(12, 6))
-    ax1.plot(time, voltage_smooth, 'b-', linewidth=1, label='Smoothed')
-    ax1.plot(time, voltage, 'b-', linewidth=0.3, alpha=0.7, label='Raw')
+    if show_smoothed:
+        ax1.plot(time, voltage_smooth, 'b-', linewidth=1, label='Smoothed')
+    ax1.plot(time, voltage, 'b-', linewidth=0.3 if show_smoothed else 1, alpha=0.7 if show_smoothed else 1, label='Raw')
     ax1.set_xlabel('Time (s)')
     ax1.set_ylabel('Voltage (V)')
-    ax1.set_title(f'Voltage vs Time - {os.path.basename(filename)} (Offset: -1.65V)')
+    ax1.set_title(f'Voltage vs Time - {os.path.basename(filename)} (Offset: -{voltage_offset:.2f}V)')
     ax1.grid(True, alpha=0.3)
     ax1.legend()
+    
+    # Set time range if specified
+    if time_min is not None or time_max is not None:
+        ax1.set_xlim(time_min, time_max)
     
     # Save voltage plot
     voltage_filename = f"{base_filename}_voltage.png"
     plt.tight_layout()
     plt.savefig(voltage_filename, dpi=300, bbox_inches='tight')
     print(f"Voltage plot saved as: {voltage_filename}")
-    plt.show()
+    plt.close(fig1)
     
     # Create current plot
     fig2, ax2 = plt.subplots(1, 1, figsize=(12, 6))
-    ax2.plot(time, current_smooth, 'r-', linewidth=1, label='Smoothed')
-    ax2.plot(time, current, 'r-', linewidth=0.3, alpha=0.7, label='Raw')
+    if show_smoothed:
+        ax2.plot(time, current_smooth, 'r-', linewidth=1, label='Smoothed')
+    ax2.plot(time, current, 'r-', linewidth=0.3 if show_smoothed else 1, alpha=0.7 if show_smoothed else 1, label='Raw')
     ax2.set_xlabel('Time (s)')
     ax2.set_ylabel('Current (A)')
-    ax2.set_title(f'Current vs Time (Sensitivity: {sensitivity_mv_per_a} mV/A, Smoothed)')
+    smoothed_text = ', Smoothed' if show_smoothed else ''
+    ax2.set_title(f'Current vs Time (Sensitivity: {sensitivity_mv_per_a} mV/A{smoothed_text})')
     ax2.grid(True, alpha=0.3)
     ax2.legend()
+    
+    # Set time range if specified
+    if time_min is not None or time_max is not None:
+        ax2.set_xlim(time_min, time_max)
     
     # Save current plot
     current_filename = f"{base_filename}_current.png"
     plt.tight_layout()
     plt.savefig(current_filename, dpi=300, bbox_inches='tight')
     print(f"Current plot saved as: {current_filename}")
-    plt.show()
+    plt.close(fig2)
     
     # Print some statistics
     print(f"\nFile: {filename}")
@@ -147,17 +174,63 @@ def plot_voltage_and_current(filename, sensitivity_mv_per_a=200):
     print(f"Data points: {len(time)}")
     print(f"Smoothing window: 11 points")
 
+def generate_all_plots(sensitivity_mv_per_a=200, time_min=None, time_max=None, output_filename=None, show_smoothed=True):
+    """
+    Generate plots for all CSV files in the Oscilloscope-Data folder.
+    
+    Args:
+        sensitivity_mv_per_a (float): Sensitivity in mV/A (default: 200)
+        time_min (float): Minimum time to display on x-axis (default: None, uses data min)
+        time_max (float): Maximum time to display on x-axis (default: None, uses data max)
+        output_filename (str): Custom base filename for output files (default: None, uses CSV base filename)
+        show_smoothed (bool): Whether to display smoothed data (default: True)
+    """
+    oscilloscope_data_dir = os.path.join(os.path.dirname(__file__), 'Oscilloscope-Data')
+    
+    if not os.path.exists(oscilloscope_data_dir):
+        print(f"Error: Oscilloscope-Data folder not found at {oscilloscope_data_dir}")
+        return
+    
+    # Get all CSV files
+    csv_files = [f for f in os.listdir(oscilloscope_data_dir) if f.endswith('.CSV')]
+    csv_files.sort()
+    
+    if not csv_files:
+        print("No CSV files found in Oscilloscope-Data folder.")
+        return
+    
+    print(f"Found {len(csv_files)} CSV files. Generating plots...")
+    
+    for i, csv_file in enumerate(csv_files):
+        filename = os.path.join(oscilloscope_data_dir, csv_file)
+        print(f"\nProcessing {i+1}/{len(csv_files)}: {csv_file}")
+        
+        try:
+            plot_voltage_and_current(filename, sensitivity_mv_per_a, time_min, time_max, output_filename, show_smoothed)
+        except Exception as e:
+            print(f"Error processing {csv_file}: {str(e)}")
+            continue
+    
+    print(f"\nCompleted processing all {len(csv_files)} files.")
+
 def main():
     """
     Main function to handle command line arguments and file selection.
     """
     if len(sys.argv) > 1:
+        # Check if user wants to generate all plots
+        if sys.argv[1].lower() == 'all':
+            generate_all_plots()
+            return
+        
         # If filename is provided as command line argument
-        filename = sys.argv[1]
+        filename = sys.argv[1] if sys.argv[1].endswith('.CSV') else sys.argv[1] + '.CSV'
+        filename = os.path.join(os.path.dirname(__file__), 'Oscilloscope-Data', filename)
     else:
         # Interactive file selection
+        oscilloscope_data_dir = os.path.join(os.path.dirname(__file__), 'Oscilloscope-Data')
         print("Available CSV files:")
-        csv_files = [f for f in os.listdir('.') if f.endswith('.CSV')]
+        csv_files = [f for f in os.listdir(oscilloscope_data_dir) if f.endswith('.CSV')]
         csv_files.sort()
         
         for i, file in enumerate(csv_files):
@@ -165,12 +238,12 @@ def main():
         
         try:
             choice = int(input("\nEnter the number of the file to plot: "))
-            filename = csv_files[choice]
+            filename = os.path.join(oscilloscope_data_dir, csv_files[choice])
         except (ValueError, IndexError):
             print("Invalid selection. Exiting.")
             return
     
-    # Check if file exists
+    # Check if file exists (final check)
     if not os.path.exists(filename):
         print(f"Error: File '{filename}' not found.")
         return
@@ -180,6 +253,13 @@ def main():
     
     # Create the plots
     plot_voltage_and_current(filename, sensitivity)
+
+# Files that show the capacitor current spike: 12 and 17
+# TEK0012: 0.0440 to 0.0512 s
+# TEK0017: 0.0292 to 0.0400 s
+
+plot_voltage_and_current("Oscilloscope-Data/TEK0012.CSV", sensitivity_mv_per_a=200, time_min=0.0440, time_max=0.0512, output_filename="TEK0012_capacitor_spike", show_smoothed=False)
+plot_voltage_and_current("Oscilloscope-Data/TEK0017.CSV", sensitivity_mv_per_a=200, time_min=0.0292, time_max=0.0400, output_filename="TEK0017_capacitor_spike", show_smoothed=False)
 
 if __name__ == "__main__":
     main()
