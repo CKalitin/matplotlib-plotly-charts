@@ -141,6 +141,9 @@ def plot_voltage_and_current(filename, sensitivity_mv_per_a=200, time_min=None, 
     # Set time range if specified
     if time_min is not None or time_max is not None:
         ax1.set_xlim(time_min, time_max)
+        # Set y-axis to match displayed data range
+        time_mask = ((time_min is None) or (time >= time_min)) & ((time_max is None) or (time <= time_max))
+        ax1.set_ylim(voltage[time_mask].min() * 0.95, voltage[time_mask].max() * 1.05)
     
     # Save voltage plot
     voltage_filename = f"{base_filename}_voltage.png"
@@ -169,6 +172,9 @@ def plot_voltage_and_current(filename, sensitivity_mv_per_a=200, time_min=None, 
     # Set time range if specified
     if time_min is not None or time_max is not None:
         ax2.set_xlim(time_min, time_max)
+        # Set y-axis to match displayed data range
+        time_mask = ((time_min is None) or (time >= time_min)) & ((time_max is None) or (time <= time_max))
+        ax2.set_ylim(current[time_mask].min() * 0.95, current[time_mask].max() * 1.05)
     
     # Save current plot
     current_filename = f"{base_filename}_current.png"
@@ -273,6 +279,8 @@ def main():
 
 plot_voltage_and_current("Oscilloscope-Data/TEK0012.CSV", sensitivity_mv_per_a=200, time_min=0.0440, time_max=0.0512, output_filename="TEK0012_capacitor_spike", show_smoothed=False)
 plot_voltage_and_current("Oscilloscope-Data/TEK0017.CSV", sensitivity_mv_per_a=200, time_min=0.0292, time_max=0.0400, output_filename="TEK0017_capacitor_spike", show_smoothed=False)
+plot_voltage_and_current("Oscilloscope-Data/TEK0017.CSV", sensitivity_mv_per_a=200, time_min=0.24, time_max=0.40, output_filename="TEK0017_pos_contactor", show_smoothed=True)
+
 
 if __name__ == "__main__":
     main()
