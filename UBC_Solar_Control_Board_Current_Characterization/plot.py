@@ -119,6 +119,9 @@ def plot_voltage_and_current(filename, sensitivity_mv_per_a=200, time_min=None, 
     if output_filename is not None:
         base_filename = output_filename
     
+    # Extract test number from filename (e.g., "0012" from "TEK0012.CSV")
+    test_number = os.path.splitext(os.path.basename(filename))[0].replace('TEK', '')
+    
     # Create voltage plot
     fig1, ax1 = plt.subplots(1, 1, figsize=(12, 6))
     if show_smoothed:
@@ -129,6 +132,11 @@ def plot_voltage_and_current(filename, sensitivity_mv_per_a=200, time_min=None, 
     ax1.set_title(f'Voltage vs Time - {os.path.basename(filename)} (Offset: -{voltage_offset:.2f}V)')
     ax1.grid(True, alpha=0.3)
     ax1.legend()
+    
+    # Add test number in top left corner
+    ax1.text(0.02, 0.98, f'Test {test_number}', transform=ax1.transAxes, 
+             fontsize=12, fontweight='bold', verticalalignment='top',
+             bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.8))
     
     # Set time range if specified
     if time_min is not None or time_max is not None:
@@ -152,6 +160,11 @@ def plot_voltage_and_current(filename, sensitivity_mv_per_a=200, time_min=None, 
     ax2.set_title(f'Current vs Time (Sensitivity: {sensitivity_mv_per_a} mV/A{smoothed_text})')
     ax2.grid(True, alpha=0.3)
     ax2.legend()
+    
+    # Add test number in top left corner
+    ax2.text(0.02, 0.98, f'Test {test_number}', transform=ax2.transAxes, 
+             fontsize=12, fontweight='bold', verticalalignment='top',
+             bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.8))
     
     # Set time range if specified
     if time_min is not None or time_max is not None:
