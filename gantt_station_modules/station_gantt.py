@@ -3,7 +3,7 @@ import plotly.io as pio
 import pandas as pd
 from html2image import Html2Image
 
-def generate(file_name="station-modules-gantt/station_modules_gantt_chart",
+def generate(file_name="gantt_station_modules/station_modules_gantt_chart",
              max_name_line_len=20,
              label_font_size=32,
              lead_name_font_size=20,
@@ -41,7 +41,7 @@ def generate(file_name="station-modules-gantt/station_modules_gantt_chart",
     def parse_file():
         data = []
         current_team = None
-        with open("station-modules-gantt/station_data.txt") as f:
+        with open("gantt_station_modules/station_data.txt") as f:
             for line in f:
                 line = line.strip()
                 line = line.replace(", -", ", 2025-07-11") # Replace ", -" with current date
@@ -202,7 +202,7 @@ def generate(file_name="station-modules-gantt/station_modules_gantt_chart",
     print(f"{file_name.split("/")[-1]}.png")
     hti.screenshot(html_file=f"{file_name}.html", save_as=f"{file_name.split("/")[-1]}.png", size=dimensions)
 
-generate("station-modules-gantt/station_modules_gantt_chart_4k",
+generate("gantt_orbital_crew_missions/station_modules_gantt_chart_4k",
          max_name_line_len=20,
          label_font_size=32,
          lead_name_font_size=20,
@@ -210,7 +210,7 @@ generate("station-modules-gantt/station_modules_gantt_chart_4k",
          dimensions=(3840, 2160)
 )
 
-generate("station-modules-gantt/station_modules_gantt_chart_1080p",
+generate("gantt_orbital_crew_missions/station_modules_gantt_chart_1080p",
          max_name_line_len=20,
          label_font_size=16,
          lead_name_font_size=9,
